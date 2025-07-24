@@ -5,62 +5,79 @@ on:
     branches: [ "main" ]
 
 jobs:
-  # Neuer Job: Führt die Tests aus
+  # Job 1: Führt die Tests aus und erstellt den HTML-Bericht
   test:
     name: Code testen
     runs-on: ubuntu-latest
-
     steps:
       - name: Code auschecken
         uses: actions/checkout@v4
-
       - name: Python einrichten
         uses: actions/setup-python@v5
         with:
           python-version: '3.9'
-
       - name: Abhängigkeiten installieren
         run: pip install -r requirements.txt
-
-      - name: Pytest ausführen und Bericht erstellen
-        # Führt Tests aus und speichert das Ergebnis in einer Datei
-        run: pytest --junitxml=test-report.xml
-
-      - name: Test-Bericht hochladen
-        # Lädt die Ergebnis-Datei als "Artefakt" hoch
+      - name: Pytest ausführen und HTML-Bericht erstellen
+        # --self-contained-html packt alles (CSS, JS) in eine einzige HTML-Datei
+        run: pytest --html=report.html --self-contained-html
+      - name: Test-Bericht als Artefakt hochladen
         uses: actions/upload-artifact@v4
         with:
-          name: test-report
-          path: test-report.xml
+          name: test-report # Der Name des Artefakts
+          path: report.html # Die Datei, die wir hochladen
 
-  # Der bereits bekannte Job, jetzt mit einer Abhängigkeit
+  # Job 2: Veröffentlicht den HTML-Bericht auf GitHub Pages
+  deploy-report:
+    name: Test-Bericht veröffentlichen
+    runs-on: ubuntu-latest
+    needs: test # Startet erst, nachdem der 'test'-Job erfolgreich war
+
+    permissions:
+      pages: write      # Erlaubnis, auf GitHub Pages zu schreiben
+      id-token: write   # Erlaubnis zur Authentifizierung
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Test-Bericht herunterladen
+        uses: actions/download-artifact@v4
+        with:
+          name: test-report # Lädt das Artefakt aus dem vorherigen Job herunter
+      - name: GitHub Pages konfigurieren
+        uses: actions/configure-pages@v5
+      - name: Webseiten-Artefakt für die Veröffentlichung hochladen
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.' # Das aktuelle Verzeichnis (enthält jetzt report.html)
+      - name: Webseite deployen
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # Job 3: Baut und veröffentlicht das Docker-Image (unverändert)
   build-and-push-image:
     name: Docker-Image bauen und pushen
     runs-on: ubuntu-latest
-    needs: test # WICHTIG: Dieser Job startet nur, wenn der 'test'-Job erfolgreich war
-
+    needs: test # Hängt immer noch vom erfolgreichen Test-Job ab
     permissions:
       contents: read
       packages: write
-
     steps:
-      # ... die Schritte zum Einloggen, Bauen und Pushen bleiben genau wie vorher ...
       - name: Code auschecken
         uses: actions/checkout@v4
-
       - name: In GitHub Container Registry einloggen
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Docker-Metadaten extrahieren
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
-
       - name: Docker-Image bauen und pushen
         uses: docker/build-push-action@v6
         with:
