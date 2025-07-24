@@ -9,6 +9,11 @@ jobs:
     name: Testen und Bericht committen
     runs-on: ubuntu-latest
 
+     
+    # DIESEN BLOCK HINZUFÜGEN
+    permissions:
+      contents: write
+
     steps:
       # 1. Code auschecken (unverändert)
       - name: Code auschecken
