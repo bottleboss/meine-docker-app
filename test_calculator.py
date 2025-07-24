@@ -11,4 +11,4 @@ def test_add_with_error():
     """Dieser Test soll bewusst fehlschlagen."""
     # Expectation: 5 + 5 sollte 10 sein. Wir behaupten fälschlicherweise, es sei 9.
     # Reality: Das Ergebnis von add(5, 5)
-    assert add(5, 5) == 9 # Dieser Test wird fehlschlagen!
+    assert add(5, 5) == 10
