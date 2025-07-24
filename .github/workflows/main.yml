@@ -1,87 +1,36 @@
-name: Testen, Bauen und Veröffentlichen
+name: Testen und Bericht committen
 
 on:
   push:
     branches: [ "main" ]
 
 jobs:
-  # Job 1: Führt die Tests aus und erstellt den HTML-Bericht
-  test:
-    name: Code testen
+  test-and-commit-report:
+    name: Testen und Bericht committen
     runs-on: ubuntu-latest
+
     steps:
+      # 1. Code auschecken (unverändert)
       - name: Code auschecken
         uses: actions/checkout@v4
+
+      # 2. Python einrichten (unverändert)
       - name: Python einrichten
         uses: actions/setup-python@v5
         with:
           python-version: '3.9'
+
+      # 3. Abhängigkeiten installieren (unverändert)
       - name: Abhängigkeiten installieren
         run: pip install -r requirements.txt
+
+      # 4. HTML-Bericht erstellen (unverändert)
       - name: Pytest ausführen und HTML-Bericht erstellen
-        # --self-contained-html packt alles (CSS, JS) in eine einzige HTML-Datei
         run: pytest --html=report.html --self-contained-html
-      - name: Test-Bericht als Artefakt hochladen
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-report # Der Name des Artefakts
-          path: report.html # Die Datei, die wir hochladen
 
-  # Job 2: Veröffentlicht den HTML-Bericht auf GitHub Pages
-  deploy-report:
-    name: Test-Bericht veröffentlichen
-    runs-on: ubuntu-latest
-    needs: test # Startet erst, nachdem der 'test'-Job erfolgreich war
-
-    permissions:
-      pages: write      # Erlaubnis, auf GitHub Pages zu schreiben
-      id-token: write   # Erlaubnis zur Authentifizierung
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Test-Bericht herunterladen
-        uses: actions/download-artifact@v4
+      # 5. NEU: Den erstellten Bericht ins Repository committen
+      - name: HTML-Bericht ins Repository committen
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          name: test-report # Lädt das Artefakt aus dem vorherigen Job herunter
-      - name: GitHub Pages konfigurieren
-        uses: actions/configure-pages@v5
-      - name: Webseiten-Artefakt für die Veröffentlichung hochladen
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: '.' # Das aktuelle Verzeichnis (enthält jetzt report.html)
-      - name: Webseite deployen
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-  # Job 3: Baut und veröffentlicht das Docker-Image (unverändert)
-  build-and-push-image:
-    name: Docker-Image bauen und pushen
-    runs-on: ubuntu-latest
-    needs: test # Hängt immer noch vom erfolgreichen Test-Job ab
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Code auschecken
-        uses: actions/checkout@v4
-      - name: In GitHub Container Registry einloggen
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Docker-Metadaten extrahieren
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-      - name: Docker-Image bauen und pushen
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.exports.labels }}
+          commit_message: "CI: Automatisch generierten Testbericht hinzufügen"
+          file_pattern: report.html
