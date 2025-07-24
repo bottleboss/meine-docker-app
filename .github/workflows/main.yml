@@ -1,20 +1,50 @@
-name: Docker-Image bauen und veröffentlichen
+name: Testen, Bauen und Veröffentlichen
 
 on:
   push:
     branches: [ "main" ]
 
 jobs:
+  # Neuer Job: Führt die Tests aus
+  test:
+    name: Code testen
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Code auschecken
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Abhängigkeiten installieren
+        run: pip install -r requirements.txt
+
+      - name: Pytest ausführen und Bericht erstellen
+        # Führt Tests aus und speichert das Ergebnis in einer Datei
+        run: pytest --junitxml=test-report.xml
+
+      - name: Test-Bericht hochladen
+        # Lädt die Ergebnis-Datei als "Artefakt" hoch
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: test-report.xml
+
+  # Der bereits bekannte Job, jetzt mit einer Abhängigkeit
   build-and-push-image:
     name: Docker-Image bauen und pushen
     runs-on: ubuntu-latest
+    needs: test # WICHTIG: Dieser Job startet nur, wenn der 'test'-Job erfolgreich war
 
-    # Berechtigungen für das Hochladen des Pakets geben
     permissions:
       contents: read
       packages: write
 
     steps:
+      # ... die Schritte zum Einloggen, Bauen und Pushen bleiben genau wie vorher ...
       - name: Code auschecken
         uses: actions/checkout@v4
 
